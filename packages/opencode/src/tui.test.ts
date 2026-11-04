@@ -13,6 +13,7 @@ interface FakeState {
   syncedSkills: number
   queriedSessions: string[]
   disposed: number
+  slots: string[]
   commands: Array<{ id: string; slash?: { name: string }; run: () => Promise<void> }>
 }
 
@@ -23,6 +24,7 @@ function fakeContext(messages: unknown[]) {
     syncedSkills: 0,
     queriedSessions: [],
     disposed: 0,
+    slots: [],
     commands: [],
   }
 
@@ -60,7 +62,10 @@ function fakeContext(messages: unknown[]) {
       },
     },
     ui: {
-      slot: () => () => {},
+      slot: ({ append }: { append: string }) => {
+        state.slots.push(append)
+        return () => {}
+      },
       panel: {
         open: (name: string) => {
           state.opened.push(name)
@@ -115,6 +120,15 @@ describe("opencode tui plugin wiring", () => {
     await command!.run()
 
     expect(state.toasts[0]).toContain("session")
+  })
+
+  it("contributes to the sidebar, not the prompt footer", () => {
+    const { context, state } = fakeContext(MESSAGES)
+    plugin.setup(context)
+
+    expect(state.slots).toContain("sidebar.content")
+    expect(state.slots).toContain("session.panel")
+    expect(state.slots).not.toContain("prompt.footer.status")
   })
 
   it("disposes event subscriptions on cleanup", () => {

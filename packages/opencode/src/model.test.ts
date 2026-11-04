@@ -98,10 +98,10 @@ describe("panel model", () => {
       used: root.skills.used,
       tree,
     })
-    expect(model.rows[0]).toEqual({ label: "[x] grilling x2 (read 2)", kind: "used", indent: 0 })
+    expect(model.rows[0]).toEqual({ label: "● grilling x2 (read 2)", kind: "used", indent: 0 })
     expect(model.rows[1]?.kind).toBe("available")
     expect(model.rows.at(-1)?.kind).toBe("child")
-    expect(model.statusline).toBe("skills 3/2")
+    expect(model.statusline.startsWith("skills 3/2")).toBe(true)
     expect(model.footnote).toContain("1 sub-agent(s)")
   })
 

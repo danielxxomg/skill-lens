@@ -1,4 +1,4 @@
-import { effectiveSkills, recordUsage, sortSkills, usageTotal } from "../../core/src/index.ts"
+import { effectiveSkills, progressBar, recordUsage, sortSkills, usageTotal } from "../../core/src/index.ts"
 import type { SessionNode, SkillRef, SkillScope, UsageEntry } from "../../core/src/index.ts"
 
 export interface CatalogSkill {
@@ -157,11 +157,11 @@ export function buildPanelModel(input: {
 
   for (const row of sortSkills({ available: [...input.available], used: [...input.used] })) {
     if (row.usage) {
-      rows.push({ label: `[x] ${usageLabel(row.usage)}`, kind: "used", indent: 0 })
+      rows.push({ label: `● ${usageLabel(row.usage)}`, kind: "used", indent: 0 })
     } else {
       const badge = row.ref.shadowed.length > 0 ? ` x${row.ref.shadowed.length + 1}` : ""
       rows.push({
-        label: `[ ] ${row.ref.name}${badge} · ${row.ref.scope}`,
+        label: `○ ${row.ref.name}${badge} · ${row.ref.scope}`,
         kind: "available",
         indent: 0,
       })
@@ -183,7 +183,7 @@ export function buildPanelModel(input: {
 
   const children = input.tree ? countDescendants(input.tree) : 0
   return {
-    statusline: `skills ${input.available.length}/${loads}`,
+    statusline: `skills ${input.available.length}/${loads} ${progressBar(loads, input.available.length)}`,
     availableCount: input.available.length,
     usedCount: loads,
     rows,

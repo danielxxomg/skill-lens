@@ -106,6 +106,13 @@ export function usageTotal(used: readonly UsageEntry[]): { loads: number; failed
   return { loads, failed }
 }
 
+/** Solid/dim bar for narrow surfaces: `▰▰▰▱▱▱▱▱▱▱`. */
+export function progressBar(used: number, total: number, width = 10): string {
+  if (total <= 0 || width <= 0) return "▱".repeat(Math.max(0, width))
+  const filled = Math.min(width, Math.max(0, Math.round((used / total) * width)))
+  return "▰".repeat(filled) + "▱".repeat(width - filled)
+}
+
 /** Sort helper: used first, then available; alphabetical inside each group. */
 export function sortSkills(
   skills: SessionSkills,

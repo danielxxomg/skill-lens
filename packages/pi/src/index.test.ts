@@ -78,7 +78,7 @@ describe("pi extension wiring", () => {
     vi.advanceTimersByTime(200)
 
     const before = last(host.widgets)
-    expect(before?.[0]).toBe("skills 2 avail · 0 used")
+    expect(before?.[0]).toBe("skills 2/0 ▱▱▱▱▱▱▱▱▱▱")
 
     await host.handlers.get("tool_result")?.(
       { toolName: "read", input: { path: "/home/me/.agents/skills/grilling/SKILL.md" }, isError: false },
@@ -87,8 +87,8 @@ describe("pi extension wiring", () => {
     vi.advanceTimersByTime(200)
 
     const after = last(host.widgets)
-    expect(after?.[0]).toBe("skills 2 avail · 1 used")
-    expect(after?.[1]).toBe("[x] grilling (read 1)")
+    expect(after?.[0]).toBe("skills 2/1 ▰▰▰▰▰▱▱▱▱▱")
+    expect(after?.[1]).toBe("● grilling (read 1)")
     expect(last(host.statuses)).toBe("skills 2/1")
 
     await host.handlers.get("session_shutdown")?.({ reason: "quit" }, host.ctx)
@@ -104,7 +104,7 @@ describe("pi extension wiring", () => {
     await host.handlers.get("input")?.({ text: "/skill:go-testing run the suite" }, host.ctx)
     vi.advanceTimersByTime(200)
 
-    expect(last(host.widgets)?.[1]).toBe("[x] go-testing (command 1)")
+    expect(last(host.widgets)?.[1]).toBe("● go-testing (command 1)")
 
     await host.handlers.get("session_shutdown")?.({ reason: "quit" }, host.ctx)
   })

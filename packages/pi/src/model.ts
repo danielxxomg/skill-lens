@@ -1,4 +1,4 @@
-import { diffSkillSets, effectiveSkills, formatDiff, recordUsage, usageTotal } from "../../core/src/index.ts"
+import { diffSkillSets, effectiveSkills, formatDiff, progressBar, recordUsage, usageTotal } from "../../core/src/index.ts"
 import type { SessionNode, SkillRef, SkillScope, UsageEntry, UsageMethod } from "../../core/src/index.ts"
 
 export interface PiSkill {
@@ -120,7 +120,9 @@ export interface WidgetInput {
 
 export function widgetLines(input: WidgetInput, maxLines = 9): string[] {
   const { loads } = usageTotal(input.used)
-  const lines: string[] = [`skills ${input.skills.length} avail · ${loads} used`]
+  const lines: string[] = [
+    `skills ${input.skills.length}/${loads} ${progressBar(loads, input.skills.length)}`,
+  ]
 
   const usedNames = new Set(input.used.map((entry) => entry.name))
   for (const entry of [...input.used].sort((a, b) => a.name.localeCompare(b.name))) {
@@ -129,11 +131,11 @@ export function widgetLines(input: WidgetInput, maxLines = 9): string[] {
       .map(([method, count]) => `${method} ${count}`)
       .join(", ")
     const failed = entry.failed > 0 ? ` !${entry.failed}` : ""
-    lines.push(`[x] ${entry.name}${methods ? ` (${methods})` : ""}${failed}`)
+    lines.push(`● ${entry.name}${methods ? ` (${methods})` : ""}${failed}`)
   }
 
   const unused = input.skills.length - [...usedNames].filter((name) => input.skills.some((s) => s.name === name)).length
-  if (unused > 0) lines.push(`[ ] ${unused} available without use`)
+  if (unused > 0) lines.push(`○ ${unused} available without use`)
 
   const parentNames = input.skills.map((skill) => skill.name)
   const runs = input.runs.slice(0, 3)

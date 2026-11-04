@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { effectiveSkills, parseAvailableSkillsBlock, recordUsage, sortSkills, usageTotal } from "./skills.ts"
+import { effectiveSkills, parseAvailableSkillsBlock, progressBar, recordUsage, sortSkills, usageTotal } from "./skills.ts"
 import { buildTree, diffSkillSets, formatDiff } from "./tree.ts"
 import type { SessionNode, SkillRef } from "./types.ts"
 
@@ -92,6 +92,15 @@ describe("recordUsage", () => {
     const original = recordUsage([], "a", "tool")
     recordUsage(original, "a", "tool")
     expect(original[0]?.methods.tool).toBe(1)
+  })
+})
+
+describe("progressBar", () => {
+  it("fills proportionally and clamps", () => {
+    expect(progressBar(0, 10, 5)).toBe("▱▱▱▱▱")
+    expect(progressBar(5, 10, 5)).toBe("▰▰▰▱▱")
+    expect(progressBar(10, 10, 5)).toBe("▰▰▰▰▰")
+    expect(progressBar(3, 0, 4)).toBe("▱▱▱▱")
   })
 })
 

@@ -193,17 +193,36 @@ export default Plugin.define({
     })
 
     context.ui.slot({
-      append: "prompt.footer.status",
-      render: (input: { sessionID?: string }) => {
+      append: "sidebar.content",
+      render: (input: { sessionID: string }) => {
         ensure(input.sessionID)
-        const current = model()
-        const matches = !!input.sessionID && tracked() === input.sessionID
-        const loaded = matches && current ? current.usedCount : undefined
-        const count = available().length
+        const current = () => (tracked() === input.sessionID ? model() : null)
+        const rows = () => (current()?.rows ?? []).slice(0, 7)
         return (
-          <text fg={context.theme.text.faint}>
-            skills {count}/{loaded ?? "-"}
-          </text>
+          <box flexDirection="column">
+            <text fg={context.theme.text.base}>
+              {current()?.statusline ?? "Skills"}
+            </text>
+            <For each={rows()}>
+              {(row) => (
+                <text
+                  fg={
+                    row.kind === "available"
+                      ? context.theme.text.muted
+                      : row.kind === "child"
+                        ? context.theme.text.faint
+                        : context.theme.text.base
+                  }
+                >
+                  {" ".repeat(row.indent)}
+                  {row.label.length > 38 ? `${row.label.slice(0, 37)}…` : row.label}
+                </text>
+              )}
+            </For>
+            <Show when={current()}>
+              {(value: () => PanelModel) => <text fg={context.theme.text.faint}>{value().footnote}</text>}
+            </Show>
+          </box>
         )
       },
     })

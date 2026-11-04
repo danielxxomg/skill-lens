@@ -137,9 +137,9 @@ describe("widgetLines", () => {
       ],
     })
 
-    expect(lines[0]).toBe("skills 2 avail · 2 used")
-    expect(lines[1]).toBe("[x] grilling (read 2)")
-    expect(lines[2]).toBe("[ ] 1 available without use")
+    expect(lines[0]).toBe("skills 2/2 ▰▰▰▰▰▰▰▰▰▰")
+    expect(lines[1]).toBe("● grilling (read 2)")
+    expect(lines[2]).toBe("○ 1 available without use")
     expect(lines[3]).toBe("-- subagents (1)")
     expect(lines[4]).toBe("  explore · running · 2 loaded +1/-1")
   })

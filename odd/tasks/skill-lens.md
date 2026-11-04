@@ -12,9 +12,9 @@ S2 — "Skills cargadas" means both sets, shown separately: `Available (N)` and 
 
 S3 — Usage detection counts three methods, each labeled: `tool` (tool named `skill`), `command` (`/skill:name` expansion), `read` (a `read`/`Read` tool call whose path ends in `SKILL.md`). Each carries a counter. Failed loads are marked, never hidden. Free-text mentions are NOT usage. pi 1.5.0 has no `skill` tool, so `read` is its primary method; `command` is observable only in pi's raw `input` event.
 
-S4 — OpenCode surface: a session panel opened by the `/skills` command (fallback `/skill-lens` on collision) plus a statusline segment rendered as `skills <available>/<used>`.
+S4 — OpenCode surface: an always-visible block in the session **sidebar** (`sidebar.content`), next to the session info (context, quota, MCP), plus the `/skills` command that opens the full `session.panel`. The block shows a proportional bar plus filled/empty markers. The prompt footer is NOT used: it renders below the input and gets lost.
 
-S5 — pi surface: a widget above the editor with the same data, a matching short status line, and the `/skills` command (which opens a select dialog with the full detail: description, path, shadowed paths).
+S5 — pi surface: a widget above the editor with the same data (bar + markers), a matching short status line, and the `/skills` command (which opens a select dialog with the full detail: description, path, shadowed paths).
 
 S6 — Sub-agents: family tree (parent -> children -> grandchildren) from the current session only, active runs first, history dimmed. Each node shows its used skills plus a diff against its parent: `+N/-M` with at most 3 names per side and "+N more"; `=` when the sets are identical.
 
@@ -43,6 +43,7 @@ Out of scope: OpenCode V1, OpenCode Desktop GUI, cross-session global view, any 
 | T3 | S4, S6, S9 (OpenCode TUI adapter) | inline (serial, after T2) | done | 9c71a19 |
 | T4 | S5, S6, S9 (pi extension) | inline (serial, after T2) | done | 267dd7f |
 | T5 | S13 (README + install) | inline | done | 09358ce |
+| T6 | S4 revision (sidebar + bar) | inline | done | cb7c544 |
 
 ## Log
 
@@ -54,3 +55,5 @@ L5 — pi audit: no `skill` tool in 1.5.0 (skills load via `read` of SKILL.md); 
 L6 — OpenCode audit: TUI plugins load only from directories referenced in `cli.json plugins` (a bare file entry is skipped); the host injects `@opencode/plugin`, so never bundle it; `SkillInfo` = id/name/description/autoinvoke/path/content (no scope); tool calls live inside `assistant.content[]`; `prompt.footer.status` receives `{sessionID?, mode, showDetails}`; `session.panel` receives `PanelInput`.
 L7 — S8 rewritten after evidence: a real 2.2.5 session (`/tmp/ctx.json`, 64 messages) has a `system` message of 8971 chars with no skill block, so OpenCode availability comes from the catalog and is marked `catalog`.
 L8 — Evidence: 40 vitest tests pass (core model, both adapters' pure logic, pi wiring with a fake host, OpenCode wiring through a stubbed injected module), `tsc --noEmit` clean. `opencode plugin list` resolves the directory entry; `pi -e packages/pi/index.ts --list-models` exits 0. Real TUI reload still pending on the user's side, which is the remaining part of S13.
+L9 — User: "no me gusto, veo que visualmente esta abajo del input caja de texto, me gustaria que sea aun mas visual, sabes cual es el 'aside', donde esta la info de la sesion, como el context, quota, mcp list y demas..?" -> S4 rewritten: sidebar block instead of prompt footer, plus a proportional bar and filled/empty markers.
+L10 — RDD assess on the sidebar change: risk medium, review_due false (under_budget, 107 changed lines). No named high-risk item, so verification stays with the change's own checks: 42 vitest tests + tsc clean.
