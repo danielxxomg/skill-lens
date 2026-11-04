@@ -191,10 +191,13 @@ export function buildPanelModel(
     }
   }
 
-  if (detail) rows.push({ label: `Available (${availableRows.length})`, kind: "section", indent: 0 })
-  for (const row of availableRows) {
+  if (detail) rows.push({ label: `Available (${sorted.length})`, kind: "section", indent: 0 })
+  const listing = detail ? sorted : availableRows
+  for (const row of listing) {
     const badge = row.ref.shadowed.length > 0 ? ` x${row.ref.shadowed.length + 1}` : ""
-    rows.push({ label: `○ ${row.ref.name}${badge} · ${row.ref.scope}`, kind: "available", indent: 0 })
+    const mark = row.usage ? "●" : "○"
+    const label = row.usage ? `${row.ref.name} x${Object.values(row.usage.methods).reduce((sum, n) => sum + (n ?? 0), 0)}` : row.ref.name
+    rows.push({ label: `${mark} ${label}${badge} · ${row.ref.scope}`, kind: row.usage ? "used" : "available", indent: 0 })
     if (detail) {
       if (row.ref.path) rows.push({ label: row.ref.path, kind: "path", indent: 1 })
       for (const path of row.ref.shadowed) rows.push({ label: path, kind: "path", indent: 1 })

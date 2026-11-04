@@ -162,4 +162,19 @@ describe("pi extension wiring", () => {
     expect(last(host.widgets)?.[1]).toBe("● missing x1 (command 1) !1")
     await host.handlers.get("session_shutdown")?.({ reason: "quit" }, host.ctx)
   })
+
+  it("does not mark the first command as failed before the catalog loads", async () => {
+    vi.useFakeTimers()
+    const host = fakeHost()
+    skillLens(host.pi as never)
+
+    await host.handlers.get("session_start")?.({ reason: "new" }, host.ctx)
+    await host.handlers.get("input")?.({ text: "/skill:grilling go" }, host.ctx)
+    await host.handlers.get("before_agent_start")?.({ systemPromptOptions: { skills: SKILLS } }, host.ctx)
+    vi.advanceTimersByTime(200)
+
+    const rendered = (last(host.widgets) ?? []).join("\n")
+    expect(rendered).not.toContain("!1")
+    await host.handlers.get("session_shutdown")?.({ reason: "quit" }, host.ctx)
+  })
 })

@@ -78,10 +78,10 @@ describe("skillNameForTool", () => {
 describe("commandSkillName", () => {
   it("reads the raw /skill: expansion", () => {
     expect(commandSkillName("/skill:grilling stress test this")).toBe("grilling")
-    expect(commandSkillName("  /skill:grilling")).toBe("grilling")
   })
 
   it("rejects names pi would not expand", () => {
+    expect(commandSkillName("  /skill:grilling")).toBeUndefined()
     expect(commandSkillName("skill:grilling")).toBeUndefined()
     expect(commandSkillName("/skill:grilling/extra")).toBeUndefined()
     expect(commandSkillName("hello")).toBeUndefined()

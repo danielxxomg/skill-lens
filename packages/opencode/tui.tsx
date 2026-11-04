@@ -40,7 +40,7 @@ export default Plugin.define({
 
     let timer: ReturnType<typeof setTimeout> | undefined
     let inFlight = false
-    let pending = false
+    let pendingSession: string | undefined
 
     const activeSessionID = (): string | undefined => {
       try {
@@ -89,7 +89,7 @@ export default Plugin.define({
 
     const refresh = async (sessionID: string | undefined): Promise<void> => {
       if (inFlight) {
-        pending = true
+        pendingSession = sessionID ?? pendingSession
         return
       }
       inFlight = true
@@ -123,9 +123,10 @@ export default Plugin.define({
         setDetail(buildPanelModel(base, { detail: true }))
       } finally {
         inFlight = false
-        if (pending) {
-          pending = false
-          void refresh(sessionID ?? tracked())
+        if (pendingSession) {
+          const next = pendingSession
+          pendingSession = undefined
+          void refresh(next)
         }
       }
     }

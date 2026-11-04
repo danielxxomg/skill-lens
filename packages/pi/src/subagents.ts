@@ -3,8 +3,16 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import type { UsageEntry } from "../../core/src/index.ts"
-import type { SubagentRun, SubagentStep } from "./model.ts"
+import type { SubagentChild, SubagentRun, SubagentStep } from "./model.ts"
 import { usageFromSessionText } from "./session-usage.ts"
+
+interface RawChild {
+  agent?: string
+  state?: string
+  status?: string
+  sessionId?: string
+  sessionFile?: string
+}
 
 interface RawStatus {
   runId?: string
@@ -17,6 +25,8 @@ interface RawStatus {
     status?: string
     skills?: string[]
     sessionFile?: string
+    sessionId?: string
+    children?: RawChild[]
   }>
 }
 
@@ -27,6 +37,7 @@ export interface LoadedRuns {
 }
 
 const usageCache = new Map<string, { stamp: string; used: UsageEntry[] }>()
+const idCache = new Map<string, { stamp: string; id: string | undefined }>()
 
 function roots(): string[] {
   const base = tmpdir()
@@ -64,16 +75,49 @@ export function usageForSessionFile(path: string): UsageEntry[] | undefined {
   }
 }
 
-function toSteps(raw: NonNullable<RawStatus["steps"]>): SubagentStep[] {
-  return raw.map((step) => ({
-    ...(step.agent ? { agent: step.agent } : {}),
-    ...(step.label ? { label: step.label } : {}),
-    ...(step.status ? { status: step.status } : {}),
-    ...(step.skills ? { skills: step.skills } : {}),
-    ...(step.sessionFile
-      ? { sessionFile: step.sessionFile, used: usageForSessionFile(step.sessionFile) ?? [] }
-      : {}),
+/** Session id from the first line of a pi session file, cached by mtime+size. */
+export function sessionIdForFile(path: string): string | undefined {
+  try {
+    const stats = statSync(path)
+    const stamp = `${stats.mtimeMs}:${stats.size}`
+    const cached = idCache.get(path)
+    if (cached?.stamp === stamp) return cached.id
+    const firstLine = readFileSync(path, "utf8").split("\n", 1)[0] ?? ""
+    const parsed = JSON.parse(firstLine) as { id?: string }
+    const id = typeof parsed.id === "string" ? parsed.id : undefined
+    idCache.set(path, { stamp, id })
+    return id
+  } catch {
+    return undefined
+  }
+}
+
+function toChildren(raw: RawChild[] | undefined): SubagentChild[] | undefined {
+  if (!raw?.length) return undefined
+  return raw.map((child) => ({
+    ...(child.agent ? { agent: child.agent } : {}),
+    ...(child.status ?? child.state ? { status: child.status ?? child.state } : {}),
+    ...(child.sessionId ? { sessionId: child.sessionId } : {}),
+    ...(child.sessionFile ? { used: usageForSessionFile(child.sessionFile) ?? [] } : {}),
   }))
+}
+
+function toSteps(raw: NonNullable<RawStatus["steps"]>): SubagentStep[] {
+  return raw.map((step) => {
+    const sessionId = step.sessionId ?? (step.sessionFile ? sessionIdForFile(step.sessionFile) : undefined)
+    const children = toChildren(step.children)
+    return {
+      ...(step.agent ? { agent: step.agent } : {}),
+      ...(step.label ? { label: step.label } : {}),
+      ...(step.status ? { status: step.status } : {}),
+      ...(step.skills ? { skills: step.skills } : {}),
+      ...(sessionId ? { sessionId } : {}),
+      ...(children ? { children } : {}),
+      ...(step.sessionFile
+        ? { sessionFile: step.sessionFile, used: usageForSessionFile(step.sessionFile) ?? [] }
+        : {}),
+    }
+  })
 }
 
 /**

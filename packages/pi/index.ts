@@ -1,6 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent"
 
-import { recordUsage, usageTotal } from "../core/src/index.ts"
+import { recordUsage } from "../core/src/index.ts"
 import type { SkillRef, UsageEntry } from "../core/src/index.ts"
 import {
   applyUsage,
@@ -40,7 +40,7 @@ export default function skillLens(pi: ExtensionAPI) {
       lastWidget = signature
       ctx.ui.setWidget(WIDGET_KEY, lines)
     }
-    ctx.ui.setStatus(STATUS_KEY, `skills ${skills.length}/${usageTotal(used).loads}`)
+    ctx.ui.setStatus(STATUS_KEY, `skills ${skills.length}/${used.length}`)
   }
 
   const schedule = (): void => {
@@ -101,7 +101,8 @@ export default function skillLens(pi: ExtensionAPI) {
     uiContext = ctx
     const name = commandSkillName(String(event?.text ?? ""))
     if (name) {
-      const known = skills.some((skill) => skill.name === name)
+      // Before the first prompt the catalog is empty, so "unknown" is not a failure.
+      const known = skills.length === 0 || skills.some((skill) => skill.name === name)
       used = recordUsage(used, name, "command", !known)
       schedule()
     }
@@ -110,6 +111,9 @@ export default function skillLens(pi: ExtensionAPI) {
   pi.registerCommand("skills", {
     description: "List available and loaded skills",
     handler: async (_args: string, ctx: any) => {
+      const fresh = (ctx.getSystemPromptOptions?.().skills ?? []) as PiSkill[]
+      if (fresh.length > 0) skills = skillsToRefs(fresh)
+
       const usedByName = new Map(used.map((entry) => [entry.name, entry]))
       const entries: Array<{ label: string; detail: string }> = []
 
@@ -130,6 +134,14 @@ export default function skillLens(pi: ExtensionAPI) {
             skill.path ?? "unknown path",
             ...skill.shadowed.map((path) => `shadowed: ${path}`),
           ].join("\n"),
+        })
+      }
+
+      for (const usage of used) {
+        if (skills.some((skill) => skill.name === usage.name)) continue
+        entries.push({
+          label: `! ${usageLabel(usage)} · unknown to this session`,
+          detail: [`${usage.name} was loaded but is not in the current catalog`, `methods: ${JSON.stringify(usage.methods)}`, `failed: ${usage.failed}`].join("\n"),
         })
       }
 

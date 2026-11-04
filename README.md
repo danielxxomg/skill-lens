@@ -65,7 +65,7 @@ Sub-agent runs come from `pi-subagents`: `status.json` under `os.tmpdir()/pi-sub
 
 ```
 packages/core      pure model: effective skills, usage aggregation, session tree, diffs
-packages/opencode  TUI-only plugin (panel + footer + /skills)
+packages/opencode  TUI-only plugin (sidebar + panel + /skills)
 packages/pi        pi extension (widget + status + /skills)
 ```
 

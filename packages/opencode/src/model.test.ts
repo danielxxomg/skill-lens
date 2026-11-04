@@ -146,7 +146,7 @@ describe("panel model", () => {
     )
     const text = JSON.stringify(model.rows)
     expect(text).toContain("Used (1)")
-    expect(text).toContain("Available (2)")
+    expect(text).toContain("Available (3)")
     expect(text).toContain("/home/me/.config/opencode/skills/go-testing/SKILL.md")
     expect(text).toContain("/home/me/.agents/skills/go-testing/SKILL.md")
   })

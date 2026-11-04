@@ -15,6 +15,13 @@ export interface PiToolResult {
   isError?: boolean
 }
 
+export interface SubagentChild {
+  agent?: string
+  status?: string
+  sessionId?: string
+  used?: UsageEntry[]
+}
+
 export interface SubagentStep {
   agent?: string
   label?: string
@@ -22,6 +29,8 @@ export interface SubagentStep {
   skills?: string[]
   used?: UsageEntry[]
   sessionFile?: string
+  sessionId?: string
+  children?: SubagentChild[]
 }
 
 export interface SubagentRun {
@@ -89,7 +98,7 @@ export function skillNameForTool(
 
 /** Raw `/skill:name` input, observed before pi expands it. */
 export function commandSkillName(text: string): string | undefined {
-  const match = text.match(/^\s*\/skill:([A-Za-z0-9._-]+)(?=\s|$)/)
+  const match = text.match(/^\/skill:([A-Za-z0-9._-]+)(?=\s|$)/)
   return match?.[1]
 }
 
@@ -151,12 +160,20 @@ export function widgetLines(input: WidgetInput, maxLines = 9): string[] {
       const name = step.agent ?? step.label ?? "subagent"
       const diff = formatDiff(diffSkillSets(parentNames, step.skills ?? []))
       const usedCount = step.used ? usageTotal(step.used).loads : 0
-      const short = run.runId.length > 4 ? run.runId.slice(-4) : run.runId
+      const identity = step.sessionId ?? run.runId
+      const short = identity.length > 6 ? identity.slice(-6) : identity
       lines.push(
         `  ${name} · ${step.status ?? run.state} · ${step.skills?.length ?? 0} loaded · ${usedCount} used · #${short} ${diff.label}`,
       )
+      if (diff.detail) lines.push(`    ${diff.detail}`)
       for (const entry of (step.used ?? []).slice(0, 2)) {
         lines.push(`    ● ${usageLabel(entry)}`)
+      }
+      for (const child of (step.children ?? []).slice(0, 2)) {
+        const childId = child.sessionId ?? ""
+        const childShort = childId.length > 6 ? childId.slice(-6) : childId
+        const suffix = childShort ? ` · #${childShort}` : ""
+        lines.push(`    ↳ ${child.agent ?? "subagent"} · ${child.status ?? "?"}${suffix}`)
       }
     }
   }
