@@ -20,6 +20,7 @@ export interface SubagentStep {
   label?: string
   status?: string
   skills?: string[]
+  used?: UsageEntry[]
   sessionFile?: string
 }
 
@@ -118,6 +119,16 @@ export interface WidgetInput {
   runs: readonly SubagentRun[]
 }
 
+function entryLabel(entry: UsageEntry): string {
+  const total = Object.values(entry.methods).reduce((sum, count) => sum + (count ?? 0), 0)
+  const methods = Object.entries(entry.methods)
+    .filter(([, count]) => (count ?? 0) > 0)
+    .map(([method, count]) => `${method} ${count}`)
+    .join(", ")
+  const failed = entry.failed > 0 ? ` !${entry.failed}` : ""
+  return `${entry.name} x${total}${methods ? ` (${methods})` : ""}${failed}`
+}
+
 export function widgetLines(input: WidgetInput, maxLines = 9): string[] {
   const { loads } = usageTotal(input.used)
   const lines: string[] = [
@@ -144,7 +155,13 @@ export function widgetLines(input: WidgetInput, maxLines = 9): string[] {
     for (const step of run.steps.slice(0, 2)) {
       const name = step.agent ?? step.label ?? "subagent"
       const diff = formatDiff(diffSkillSets(parentNames, step.skills ?? []))
-      lines.push(`  ${name} · ${step.status ?? run.state} · ${step.skills?.length ?? 0} loaded ${diff.label}`)
+      const usedCount = step.used ? usageTotal(step.used).loads : 0
+      lines.push(
+        `  ${name} · ${step.status ?? run.state} · ${step.skills?.length ?? 0} loaded · ${usedCount} used ${diff.label}`,
+      )
+      for (const entry of (step.used ?? []).slice(0, 2)) {
+        lines.push(`    ● ${entryLabel(entry)}`)
+      }
     }
   }
 
@@ -165,7 +182,7 @@ export function subagentNodes(runs: readonly SubagentRun[], rootID: string, skil
         ...(step.agent ? { agent: step.agent } : {}),
         ...(step.label ? { title: step.label } : {}),
         state: step.status === "running" ? "running" : step.status === "failed" ? "failed" : "done",
-        skills: { available, used: [] },
+        skills: { available, used: [...(step.used ?? [])] },
         children: [],
       })
     })

@@ -101,6 +101,8 @@ describe("panel model", () => {
     expect(model.rows[0]).toEqual({ label: "● grilling x2 (read 2)", kind: "used", indent: 0 })
     expect(model.rows[1]?.kind).toBe("available")
     expect(model.rows.at(-1)?.kind).toBe("child")
+    expect(model.rows.at(-1)?.label).toBe("● go-testing x1 (tool 1)")
+    expect(model.rows.at(-1)?.indent).toBe(2)
     expect(model.statusline.startsWith("skills 3/2")).toBe(true)
     expect(model.footnote).toContain("1 sub-agent(s)")
   })

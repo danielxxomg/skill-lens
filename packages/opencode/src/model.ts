@@ -170,12 +170,16 @@ export function buildPanelModel(input: {
 
   const walk = (node: SessionNode, depth: number): void => {
     for (const child of node.children) {
+      const shortId = child.id.length > 8 ? child.id.slice(-6) : child.id
       const label = child.title ?? child.agent ?? child.id
       rows.push({
-        label: `${label} · ${child.state} · ${child.skills.used.length} used`,
+        label: `${label} · ${child.state} · ${child.skills.used.length} used · #${shortId}`,
         kind: "child",
         indent: depth,
       })
+      for (const entry of child.skills.used.slice(0, 3)) {
+        rows.push({ label: `● ${usageLabel(entry)}`, kind: "child", indent: depth + 1 })
+      }
       walk(child, depth + 1)
     }
   }

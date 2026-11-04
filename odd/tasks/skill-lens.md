@@ -16,7 +16,7 @@ S4 — OpenCode surface: an always-visible block in the session **sidebar** (`si
 
 S5 — pi surface: a widget above the editor with the same data (bar + markers), a matching short status line, and the `/skills` command (which opens a select dialog with the full detail: description, path, shadowed paths).
 
-S6 — Sub-agents: family tree (parent -> children -> grandchildren) from the current session only, active runs first, history dimmed. Each node shows its used skills plus a diff against its parent: `+N/-M` with at most 3 names per side and "+N more"; `=` when the sets are identical.
+S6 — Sub-agents: family tree (parent -> children -> grandchildren) from the current session only, active runs first, history dimmed. Each node shows its own used skills with method counts, its short session id, and a diff against its parent: `+N/-M` with at most 3 names per side and "+N more"; `=` when the sets are identical.
 
 S7 — Duplicates: one row per effective name, badge `xN`, with the winning path and the shadowed paths in the detail view. The harness's own precedence decides the winner.
 
@@ -57,3 +57,5 @@ L7 — S8 rewritten after evidence: a real 2.2.5 session (`/tmp/ctx.json`, 64 me
 L8 — Evidence: 40 vitest tests pass (core model, both adapters' pure logic, pi wiring with a fake host, OpenCode wiring through a stubbed injected module), `tsc --noEmit` clean. `opencode plugin list` resolves the directory entry; `pi -e packages/pi/index.ts --list-models` exits 0. Real TUI reload still pending on the user's side, which is the remaining part of S13.
 L9 — User: "no me gusto, veo que visualmente esta abajo del input caja de texto, me gustaria que sea aun mas visual, sabes cual es el 'aside', donde esta la info de la sesion, como el context, quota, mcp list y demas..?" -> S4 rewritten: sidebar block instead of prompt footer, plus a proportional bar and filled/empty markers.
 L10 — RDD assess on the sidebar change: risk medium, review_due false (under_budget, 107 changed lines). No named high-risk item, so verification stays with the change's own checks: 42 vitest tests + tsc clean.
+L11 — User: "mucho mejor.., pero dime!, visualmente es posible saber que sesion sub-agente lo cargo??,. cuantas veces?? etc" -> S6 rewritten: per-node used skills with counts and the session short id. OpenCode reads child messages directly; pi joins assistant toolCall blocks with toolResult entries by call id from steps[].sessionFile, cached by mtime+size.
+L12 — Evidence: 46 vitest tests green (new session-usage parser + per-child rows), tsc clean.

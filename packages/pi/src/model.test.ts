@@ -141,7 +141,31 @@ describe("widgetLines", () => {
     expect(lines[1]).toBe("● grilling (read 2)")
     expect(lines[2]).toBe("○ 1 available without use")
     expect(lines[3]).toBe("-- subagents (1)")
-    expect(lines[4]).toBe("  explore · running · 2 loaded +1/-1")
+    expect(lines[4]).toBe("  explore · running · 2 loaded · 0 used +1/-1")
+  })
+
+  it("lists the sub-agent's used skills under its row", () => {
+    const lines = widgetLines({
+      skills: refs,
+      used: [],
+      runs: [
+        {
+          runId: "r1",
+          state: "running",
+          steps: [
+            {
+              agent: "explore",
+              status: "running",
+              skills: ["grilling"],
+              used: [{ name: "grilling", methods: { read: 2 }, failed: 0 }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(lines).toContain("  explore · running · 1 loaded · 2 used -1")
+    expect(lines).toContain("    ● grilling x2 (read 2)")
   })
 
   it("never exceeds maxLines", () => {

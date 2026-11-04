@@ -20,7 +20,7 @@ skills 55/3
   - `read` — a `read` of a `SKILL.md` file (pi 1.5.0 has no `skill` tool; this is how the model loads skills there).
   - `command` — a `/skill:name` expansion (pi).
   - Failed loads are marked with `!N`, never hidden.
-- **Sub-agents** — the session family tree from the current session, running runs first, each with its own loaded set and a `+N/-M` diff against the parent (`=` when identical).
+- **Sub-agents** — the session family tree from the current session, running runs first, each with its own loaded set, its **own used skills with counts**, and a `+N/-M` diff against the parent (`=` when identical). OpenCode reads this exactly from each child session's tool calls; pi joins each run's assistant `toolCall` blocks with its `toolResult` entries by call id, cached by file mtime so the poll stays cheap.
 
 Nothing is persisted: the plugin reads the harness's own session state every time.
 

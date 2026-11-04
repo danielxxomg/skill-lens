@@ -1,8 +1,10 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
+import type { UsageEntry } from "../../core/src/index.ts"
 import type { SubagentRun, SubagentStep } from "./model.ts"
+import { usageFromSessionText } from "./session-usage.ts"
 
 interface RawStatus {
   runId?: string
@@ -23,6 +25,8 @@ export interface LoadedRuns {
   /** parent pi session id declared by each run's status.json */
   parentByRun: Map<string, string | undefined>
 }
+
+const usageCache = new Map<string, { stamp: string; used: UsageEntry[] }>()
 
 function roots(): string[] {
   const base = tmpdir()
@@ -45,13 +49,30 @@ function parseStatus(path: string): RawStatus | undefined {
   }
 }
 
+/** Per-run usage, cached until the session file changes on disk. */
+export function usageForSessionFile(path: string): UsageEntry[] | undefined {
+  try {
+    const stats = statSync(path)
+    const stamp = `${stats.mtimeMs}:${stats.size}`
+    const cached = usageCache.get(path)
+    if (cached?.stamp === stamp) return cached.used
+    const used = usageFromSessionText(readFileSync(path, "utf8"))
+    usageCache.set(path, { stamp, used })
+    return used
+  } catch {
+    return undefined
+  }
+}
+
 function toSteps(raw: NonNullable<RawStatus["steps"]>): SubagentStep[] {
   return raw.map((step) => ({
     ...(step.agent ? { agent: step.agent } : {}),
     ...(step.label ? { label: step.label } : {}),
     ...(step.status ? { status: step.status } : {}),
     ...(step.skills ? { skills: step.skills } : {}),
-    ...(step.sessionFile ? { sessionFile: step.sessionFile } : {}),
+    ...(step.sessionFile
+      ? { sessionFile: step.sessionFile, used: usageForSessionFile(step.sessionFile) ?? [] }
+      : {}),
   }))
 }
 
