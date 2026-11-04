@@ -45,7 +45,7 @@ Out of scope: OpenCode V1, OpenCode Desktop GUI, cross-session global view, any 
 | T5 | S13 (README + install) | inline | done | 09358ce |
 | T6 | S4 revision (sidebar + bar) | inline | done | cb7c544 |
 | T7 | Verify correction batch 1 (counts, diffs, refresh, history) | inline | done | 0f5b9c9 |
-| T8 | Verify correction batch 2 (catalog sections, grandchild rows, refresh identity) | inline | done | pending commit |
+| T8 | Verify correction batch 2 (catalog sections, grandchild rows, refresh identity) | inline | done | 87dba2d |
 
 ## Log
 
