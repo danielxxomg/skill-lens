@@ -35,10 +35,12 @@ export default Plugin.define({
 
     const [available, setAvailable] = createSignal<SkillRef[]>([])
     const [model, setModel] = createSignal<PanelModel | null>(null)
+    const [detail, setDetail] = createSignal<PanelModel | null>(null)
     const [tracked, setTracked] = createSignal<string | undefined>(undefined)
 
     let timer: ReturnType<typeof setTimeout> | undefined
     let inFlight = false
+    let pending = false
 
     const activeSessionID = (): string | undefined => {
       try {
@@ -86,7 +88,10 @@ export default Plugin.define({
     }
 
     const refresh = async (sessionID: string | undefined): Promise<void> => {
-      if (inFlight) return
+      if (inFlight) {
+        pending = true
+        return
+      }
       inFlight = true
       try {
         try {
@@ -108,16 +113,20 @@ export default Plugin.define({
         }
 
         const tree = buildTree(nodes, sessionID) ?? nodes.find((node) => node.id === sessionID)
-        setModel(
-          buildPanelModel({
-            sessionID,
-            available: refs,
-            used: tree?.skills.used ?? [],
-            tree,
-          }),
-        )
+        const base = {
+          sessionID,
+          available: refs,
+          used: tree?.skills.used ?? [],
+          tree,
+        }
+        setModel(buildPanelModel(base))
+        setDetail(buildPanelModel(base, { detail: true }))
       } finally {
         inFlight = false
+        if (pending) {
+          pending = false
+          void refresh(sessionID ?? tracked())
+        }
       }
     }
 
@@ -154,7 +163,7 @@ export default Plugin.define({
       render: (panel: PanelInput) => {
         const Panel = () => {
           createEffect(() => ensure(panel.sessionID))
-          const data = () => (tracked() === panel.sessionID ? model() : null)
+          const data = () => (tracked() === panel.sessionID ? detail() : null)
           return (
             <box flexDirection="column" padding={1}>
               <text fg={context.theme.text.base}>Skill Lens</text>

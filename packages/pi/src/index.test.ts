@@ -11,6 +11,8 @@ function fakeHost() {
   const statuses: string[] = []
   const notifications: string[] = []
 
+  const session = { id: "ses_test", entries: [] as unknown[] }
+
   const ctx = {
     hasUI: true,
     ui: {
@@ -23,7 +25,10 @@ function fakeHost() {
       notify: (message: string) => notifications.push(message),
       select: async () => undefined,
     },
-    sessionManager: { getSessionId: () => "ses_test" },
+    sessionManager: {
+      getSessionId: () => session.id,
+      getEntries: () => session.entries,
+    },
   }
 
   const pi = {
@@ -33,7 +38,7 @@ function fakeHost() {
     registerShortcut: () => {},
   }
 
-  return { handlers, commands, widgets, statuses, notifications, ctx, pi }
+  return { handlers, commands, widgets, statuses, notifications, ctx, session, pi }
 }
 
 const SKILLS = [
@@ -88,7 +93,7 @@ describe("pi extension wiring", () => {
 
     const after = last(host.widgets)
     expect(after?.[0]).toBe("skills 2/1 ▰▰▰▰▰▱▱▱▱▱")
-    expect(after?.[1]).toBe("● grilling (read 1)")
+    expect(after?.[1]).toBe("● grilling x1 (read 1)")
     expect(last(host.statuses)).toBe("skills 2/1")
 
     await host.handlers.get("session_shutdown")?.({ reason: "quit" }, host.ctx)
@@ -104,8 +109,57 @@ describe("pi extension wiring", () => {
     await host.handlers.get("input")?.({ text: "/skill:go-testing run the suite" }, host.ctx)
     vi.advanceTimersByTime(200)
 
-    expect(last(host.widgets)?.[1]).toBe("● go-testing (command 1)")
+    expect(last(host.widgets)?.[1]).toBe("● go-testing x1 (command 1)")
 
+    await host.handlers.get("session_shutdown")?.({ reason: "quit" }, host.ctx)
+  })
+
+  it("resets on a new session and restores usage from entries on resume", async () => {
+    vi.useFakeTimers()
+    const host = fakeHost()
+    skillLens(host.pi as never)
+
+    await host.handlers.get("session_start")?.({ reason: "new" }, host.ctx)
+    await host.handlers.get("before_agent_start")?.({ systemPromptOptions: { skills: SKILLS } }, host.ctx)
+    vi.advanceTimersByTime(200)
+    expect(last(host.statuses)).toBe("skills 2/0")
+
+    host.session.entries = [
+      {
+        type: "message",
+        message: {
+          role: "assistant",
+          content: [
+            {
+              type: "toolCall",
+              id: "c1",
+              name: "read",
+              input: { path: "/home/me/.agents/skills/grilling/SKILL.md" },
+            },
+          ],
+        },
+      },
+      { type: "message", message: { role: "toolResult", toolCallId: "c1", toolName: "read", isError: false } },
+    ]
+    host.session.id = "ses_resumed"
+    await host.handlers.get("session_start")?.({ reason: "resume" }, host.ctx)
+    vi.advanceTimersByTime(200)
+
+    expect(last(host.statuses)).toBe("skills 2/1")
+    await host.handlers.get("session_shutdown")?.({ reason: "quit" }, host.ctx)
+  })
+
+  it("counts an unknown /skill:name as a failed load", async () => {
+    vi.useFakeTimers()
+    const host = fakeHost()
+    skillLens(host.pi as never)
+
+    await host.handlers.get("session_start")?.({ reason: "new" }, host.ctx)
+    await host.handlers.get("before_agent_start")?.({ systemPromptOptions: { skills: SKILLS } }, host.ctx)
+    await host.handlers.get("input")?.({ text: "/skill:missing do it" }, host.ctx)
+    vi.advanceTimersByTime(200)
+
+    expect(last(host.widgets)?.[1]).toBe("● missing x1 (command 1) !1")
     await host.handlers.get("session_shutdown")?.({ reason: "quit" }, host.ctx)
   })
 })

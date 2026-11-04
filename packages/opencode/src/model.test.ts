@@ -5,11 +5,16 @@ import {
   catalogToRefs,
   countDescendants,
   sessionNode,
+  sessionState,
   skillNameFromPath,
   usageFromMessages,
   usageLabel,
 } from "./model.ts"
 import { buildTree } from "../../core/src/index.ts"
+
+// Shapes below mirror a live OpenCode 2.2.5 capture: assistant content holds
+// `{ type: "tool", name, state: { status, input } }`, with `{ id }` for `skill`
+// and `{ path }` for `read` (verified against /api/session/<id>/context).
 
 const CATALOG = [
   { name: "go-testing", description: "Go test patterns", path: "/home/me/.config/opencode/skills/go-testing/SKILL.md" },
@@ -103,11 +108,54 @@ describe("panel model", () => {
     expect(model.rows.at(-1)?.kind).toBe("child")
     expect(model.rows.at(-1)?.label).toBe("● go-testing x1 (tool 1)")
     expect(model.rows.at(-1)?.indent).toBe(2)
-    expect(model.statusline.startsWith("skills 3/2")).toBe(true)
+    expect(model.statusline.startsWith("skills 3/1")).toBe(true)
+    expect(model.usedCount).toBe(1)
     expect(model.footnote).toContain("1 sub-agent(s)")
   })
 
   it("counts nested descendants", () => {
     expect(countDescendants(tree!)).toBe(1)
+  })
+
+  it("labels children with diff, state and short id", () => {
+    const model = buildPanelModel({ sessionID: "root", available, used: [], tree })
+    const child = model.rows.find((row) => row.kind === "child")
+    expect(child?.label).toContain("#child")
+    expect(child?.label).toContain("=")
+  })
+
+  it("badges used rows whose name is shadowed", () => {
+    const model = buildPanelModel({
+      sessionID: "root",
+      available,
+      used: [{ name: "go-testing", methods: { tool: 1 }, failed: 0 }],
+      tree: undefined,
+    })
+    expect(model.rows[0]?.label).toBe("● go-testing x1 (tool 1) x2")
+  })
+
+  it("detail model adds sections and every path", () => {
+    const model = buildPanelModel(
+      {
+        sessionID: "root",
+        available,
+        used: [{ name: "go-testing", methods: { tool: 1 }, failed: 0 }],
+        tree: undefined,
+      },
+      { detail: true },
+    )
+    const text = JSON.stringify(model.rows)
+    expect(text).toContain("Used (1)")
+    expect(text).toContain("Available (2)")
+    expect(text).toContain("/home/me/.config/opencode/skills/go-testing/SKILL.md")
+    expect(text).toContain("/home/me/.agents/skills/go-testing/SKILL.md")
+  })
+})
+
+describe("sessionState", () => {
+  it("uses busy > idle instead of presence", () => {
+    expect(sessionState({ id: "x", time: { busy: 20, idle: 10 } })).toBe("running")
+    expect(sessionState({ id: "x", time: { busy: 10, idle: 20 } })).toBe("idle")
+    expect(sessionState({ id: "x", time: {} })).toBe("unknown")
   })
 })

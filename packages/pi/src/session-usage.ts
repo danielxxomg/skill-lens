@@ -21,24 +21,21 @@ function pick(value: Record<string, unknown>, keys: readonly string[]): string |
 }
 
 /**
- * Count skill loads inside one sub-agent session file.
+ * Count skill loads from session entries.
  *
  * pi stores the call (with its input path) in the assistant message and the
  * outcome in a separate `toolResult` entry, so the two are joined by call id.
  * Without the assistant side a run can only report its loaded set, not counts.
+ *
+ * Works for both a `session.jsonl` file and `ctx.sessionManager.getEntries()`.
  */
-export function usageFromSessionText(text: string): UsageEntry[] {
+export function usageFromEntries(entries: readonly unknown[]): UsageEntry[] {
   const calls = new Map<string, ToolCallRef>()
   const pending: Array<{ name: string; input: Record<string, unknown>; failed: boolean }> = []
 
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue
-    let entry: { type?: string; message?: Record<string, unknown> }
-    try {
-      entry = JSON.parse(line)
-    } catch {
-      continue
-    }
+  for (const raw of entries) {
+    if (!raw || typeof raw !== "object") continue
+    const entry = raw as { type?: string; message?: Record<string, unknown> }
     if (entry.type !== "message" || !entry.message) continue
     const message = entry.message
     const role = message.role
@@ -62,8 +59,8 @@ export function usageFromSessionText(text: string): UsageEntry[] {
     }
 
     if (role === "toolResult" || role === "tool_result") {
-      const name = pick(message as Record<string, unknown>, ["toolName", "name"])
-      const id = pick(message as Record<string, unknown>, ["toolCallId", "tool_call_id", "id"])
+      const name = pick(message, ["toolName", "name"])
+      const id = pick(message, ["toolCallId", "tool_call_id", "id"])
       const call = id ? calls.get(id) : undefined
       const resolvedName = name ?? call?.name
       if (!resolvedName) continue
@@ -84,4 +81,17 @@ export function usageFromSessionText(text: string): UsageEntry[] {
     used = recordUsage(used, skill, method, call.failed)
   }
   return used
+}
+
+export function usageFromSessionText(text: string): UsageEntry[] {
+  const entries: unknown[] = []
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue
+    try {
+      entries.push(JSON.parse(line))
+    } catch {
+      // A truncated final line is normal in an append-only session file.
+    }
+  }
+  return usageFromEntries(entries)
 }

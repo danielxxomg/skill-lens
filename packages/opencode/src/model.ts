@@ -1,4 +1,4 @@
-import { effectiveSkills, progressBar, recordUsage, sortSkills, usageTotal } from "../../core/src/index.ts"
+import { diffSkillSets, effectiveSkills, formatDiff, progressBar, recordUsage, sortSkills, usageTotal } from "../../core/src/index.ts"
 import type { SessionNode, SkillRef, SkillScope, UsageEntry } from "../../core/src/index.ts"
 
 export interface CatalogSkill {
@@ -27,16 +27,21 @@ export interface MessageLike {
   content?: readonly unknown[]
 }
 
+export type PanelRowKind = "used" | "available" | "child" | "section" | "path"
+
 export interface PanelRow {
   label: string
-  kind: "used" | "available" | "child"
+  kind: PanelRowKind
   indent: number
 }
 
 export interface PanelModel {
   statusline: string
   availableCount: number
+  /** distinct skills that were loaded at least once */
   usedCount: number
+  /** total load events, failures included */
+  loads: number
   rows: PanelRow[]
   footnote: string
 }
@@ -113,9 +118,16 @@ export function usageFromMessages(messages: readonly MessageLike[]): UsageEntry[
   return used
 }
 
-function sessionState(info: SessionInfoLike): SessionNode["state"] {
-  if (info.time?.busy && !info.time?.idle) return "running"
-  if (info.time?.idle) return "idle"
+/**
+ * `busy` and `idle` are timestamps that persist across runs: a session that
+ * started a new run after finishing one has both set, and `busy > idle` is the
+ * only reliable running signal.
+ */
+export function sessionState(info: SessionInfoLike): SessionNode["state"] {
+  const busy = info.time?.busy ?? 0
+  const idle = info.time?.idle ?? 0
+  if (busy > idle) return "running"
+  if (idle > 0) return "idle"
   return "unknown"
 }
 
@@ -146,50 +158,80 @@ export function usageLabel(entry: UsageEntry): string {
   return `${entry.name} x${total}${suffix}${failures}`
 }
 
-export function buildPanelModel(input: {
-  sessionID: string
-  available: readonly SkillRef[]
-  used: readonly UsageEntry[]
-  tree: SessionNode | undefined
-}): PanelModel {
+function shortId(id: string): string {
+  return id.length > 8 ? id.slice(-6) : id
+}
+
+export function buildPanelModel(
+  input: {
+    sessionID: string
+    available: readonly SkillRef[]
+    used: readonly UsageEntry[]
+    tree: SessionNode | undefined
+  },
+  options: { detail?: boolean } = {},
+): PanelModel {
+  const detail = options.detail === true
   const rows: PanelRow[] = []
+  const byName = new Map(input.available.map((ref) => [ref.name, ref]))
   const { loads } = usageTotal(input.used)
 
-  for (const row of sortSkills({ available: [...input.available], used: [...input.used] })) {
-    if (row.usage) {
-      rows.push({ label: `● ${usageLabel(row.usage)}`, kind: "used", indent: 0 })
-    } else {
-      const badge = row.ref.shadowed.length > 0 ? ` x${row.ref.shadowed.length + 1}` : ""
-      rows.push({
-        label: `○ ${row.ref.name}${badge} · ${row.ref.scope}`,
-        kind: "available",
-        indent: 0,
-      })
+  const sorted = sortSkills({ available: [...input.available], used: [...input.used] })
+  const usedRows = sorted.filter((row) => row.usage)
+  const availableRows = sorted.filter((row) => !row.usage)
+
+  if (detail) rows.push({ label: `Used (${usedRows.length})`, kind: "section", indent: 0 })
+  for (const row of usedRows) {
+    const ref = byName.get(row.ref.name)
+    const badge = ref && ref.shadowed.length > 0 ? ` x${ref.shadowed.length + 1}` : ""
+    rows.push({ label: `● ${usageLabel(row.usage!)}${badge}`, kind: "used", indent: 0 })
+    if (detail) {
+      if (ref?.path) rows.push({ label: ref.path, kind: "path", indent: 1 })
+      for (const path of ref?.shadowed ?? []) rows.push({ label: path, kind: "path", indent: 1 })
     }
   }
 
-  const walk = (node: SessionNode, depth: number): void => {
+  if (detail) rows.push({ label: `Available (${availableRows.length})`, kind: "section", indent: 0 })
+  for (const row of availableRows) {
+    const badge = row.ref.shadowed.length > 0 ? ` x${row.ref.shadowed.length + 1}` : ""
+    rows.push({ label: `○ ${row.ref.name}${badge} · ${row.ref.scope}`, kind: "available", indent: 0 })
+    if (detail) {
+      if (row.ref.path) rows.push({ label: row.ref.path, kind: "path", indent: 1 })
+      for (const path of row.ref.shadowed) rows.push({ label: path, kind: "path", indent: 1 })
+    }
+  }
+
+  const walk = (node: SessionNode, depth: number, parentAvailable: readonly SkillRef[]): void => {
     for (const child of node.children) {
-      const shortId = child.id.length > 8 ? child.id.slice(-6) : child.id
+      const diff = formatDiff(
+        diffSkillSets(
+          parentAvailable.map((skill) => skill.name),
+          child.skills.available.map((skill) => skill.name),
+        ),
+      )
       const label = child.title ?? child.agent ?? child.id
       rows.push({
-        label: `${label} · ${child.state} · ${child.skills.used.length} used · #${shortId}`,
+        label: `${label} · ${child.state} · ${child.skills.used.length} used · #${shortId(child.id)} ${diff.label}`,
         kind: "child",
         indent: depth,
       })
-      for (const entry of child.skills.used.slice(0, 3)) {
+      if (detail && diff.detail) {
+        rows.push({ label: diff.detail, kind: "path", indent: depth + 1 })
+      }
+      for (const entry of child.skills.used.slice(0, detail ? 50 : 3)) {
         rows.push({ label: `● ${usageLabel(entry)}`, kind: "child", indent: depth + 1 })
       }
-      walk(child, depth + 1)
+      walk(child, depth + 1, child.skills.available)
     }
   }
-  if (input.tree) walk(input.tree, 1)
+  if (input.tree) walk(input.tree, 1, input.tree.skills.available)
 
   const children = input.tree ? countDescendants(input.tree) : 0
   return {
-    statusline: `skills ${input.available.length}/${loads} ${progressBar(loads, input.available.length)}`,
+    statusline: `skills ${input.available.length}/${usedRows.length} ${progressBar(usedRows.length, input.available.length)}`,
     availableCount: input.available.length,
-    usedCount: loads,
+    usedCount: usedRows.length,
+    loads,
     rows,
     footnote: `${children} sub-agent(s) · source catalog`,
   }

@@ -14,6 +14,7 @@ import {
 import type { PiSkill, SubagentRun } from "./model.ts"
 
 const PI_SKILLS: PiSkill[] = [
+  // Shape from pi 1.5.0 `before_agent_start.systemPromptOptions.skills`.
   {
     name: "go-testing",
     description: "Go patterns",
@@ -77,7 +78,12 @@ describe("skillNameForTool", () => {
 describe("commandSkillName", () => {
   it("reads the raw /skill: expansion", () => {
     expect(commandSkillName("/skill:grilling stress test this")).toBe("grilling")
+    expect(commandSkillName("  /skill:grilling")).toBe("grilling")
+  })
+
+  it("rejects names pi would not expand", () => {
     expect(commandSkillName("skill:grilling")).toBeUndefined()
+    expect(commandSkillName("/skill:grilling/extra")).toBeUndefined()
     expect(commandSkillName("hello")).toBeUndefined()
   })
 })
@@ -114,8 +120,8 @@ describe("runsForSession", () => {
     ["c", "ses_other"],
   ])
 
-  it("keeps only the current parent and sorts newest first", () => {
-    expect(runsForSession(runs, "ses_me", parents).map((run) => run.runId)).toEqual(["b", "a"])
+  it("keeps only the current parent, running first then newest", () => {
+    expect(runsForSession(runs, "ses_me", parents).map((run) => run.runId)).toEqual(["a", "b"])
   })
 
   it("returns nothing without a session id", () => {
@@ -137,11 +143,11 @@ describe("widgetLines", () => {
       ],
     })
 
-    expect(lines[0]).toBe("skills 2/2 ▰▰▰▰▰▰▰▰▰▰")
-    expect(lines[1]).toBe("● grilling (read 2)")
+    expect(lines[0]).toBe("skills 2/1 ▰▰▰▰▰▱▱▱▱▱")
+    expect(lines[1]).toBe("● grilling x2 (read 2)")
     expect(lines[2]).toBe("○ 1 available without use")
     expect(lines[3]).toBe("-- subagents (1)")
-    expect(lines[4]).toBe("  explore · running · 2 loaded · 0 used +1/-1")
+    expect(lines[4]).toBe("  explore · running · 2 loaded · 0 used · #r1 +1/-1")
   })
 
   it("lists the sub-agent's used skills under its row", () => {
@@ -164,7 +170,7 @@ describe("widgetLines", () => {
       ],
     })
 
-    expect(lines).toContain("  explore · running · 1 loaded · 2 used -1")
+    expect(lines).toContain("  explore · running · 1 loaded · 2 used · #r1 -1")
     expect(lines).toContain("    ● grilling x2 (read 2)")
   })
 

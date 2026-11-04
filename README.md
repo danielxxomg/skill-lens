@@ -38,8 +38,8 @@ TUI-only plugin. Add the **directory** (not a file) to `cli.json`:
 
 Reload the TUI. Then:
 
-- `/skills` (or `/skill-lens`) opens the **Skill Lens** panel for the current session.
-- The prompt footer shows `skills <available>/<used>`.
+- `/skills` (or `/skill-lens`) opens the **Skill Lens** panel for the current session, with sections, paths and shadowed duplicates.
+- The session **sidebar** shows `skills <available>/<used>` with a proportional bar, next to context, quota and MCP.
 
 The package must not bundle `@opencode/plugin`: the host injects it and refuses a foreign copy. That is why the monorepo has no runtime dependency on it.
 

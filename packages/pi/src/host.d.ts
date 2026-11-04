@@ -14,7 +14,7 @@ declare module "@earendil-works/pi-coding-agent" {
       notify: (message: string, level?: "info" | "warning" | "error") => void
       select: (title: string, options: string[]) => Promise<string | undefined>
     }
-    sessionManager: { getSessionId: () => string }
+    sessionManager: { getSessionId: () => string; getEntries?: () => unknown[] }
   }
 
   export interface ExtensionAPI {

@@ -89,7 +89,7 @@ export function skillNameForTool(
 
 /** Raw `/skill:name` input, observed before pi expands it. */
 export function commandSkillName(text: string): string | undefined {
-  const match = text.match(/^\s*\/skill:([A-Za-z0-9._-]+)/)
+  const match = text.match(/^\s*\/skill:([A-Za-z0-9._-]+)(?=\s|$)/)
   return match?.[1]
 }
 
@@ -108,9 +108,10 @@ export function applyUsage(
 
 export function runsForSession(runs: readonly SubagentRun[], sessionId: string | undefined, parentIDByRun: ReadonlyMap<string, string | undefined>): SubagentRun[] {
   if (!sessionId) return []
+  const rank = (run: SubagentRun): number => (run.state === "running" ? 0 : 1)
   return runs
     .filter((run) => parentIDByRun.get(run.runId) === sessionId)
-    .sort((left, right) => (right.startedAt ?? 0) - (left.startedAt ?? 0))
+    .sort((left, right) => rank(left) - rank(right) || (right.startedAt ?? 0) - (left.startedAt ?? 0))
 }
 
 export interface WidgetInput {
@@ -119,7 +120,7 @@ export interface WidgetInput {
   runs: readonly SubagentRun[]
 }
 
-function entryLabel(entry: UsageEntry): string {
+export function usageLabel(entry: UsageEntry): string {
   const total = Object.values(entry.methods).reduce((sum, count) => sum + (count ?? 0), 0)
   const methods = Object.entries(entry.methods)
     .filter(([, count]) => (count ?? 0) > 0)
@@ -131,18 +132,12 @@ function entryLabel(entry: UsageEntry): string {
 
 export function widgetLines(input: WidgetInput, maxLines = 9): string[] {
   const { loads } = usageTotal(input.used)
-  const lines: string[] = [
-    `skills ${input.skills.length}/${loads} ${progressBar(loads, input.skills.length)}`,
+  const lines: string[] = [    `skills ${input.skills.length}/${input.used.length} ${progressBar(input.used.length, input.skills.length)}`,
   ]
 
   const usedNames = new Set(input.used.map((entry) => entry.name))
   for (const entry of [...input.used].sort((a, b) => a.name.localeCompare(b.name))) {
-    const methods = Object.entries(entry.methods)
-      .filter(([, count]) => (count ?? 0) > 0)
-      .map(([method, count]) => `${method} ${count}`)
-      .join(", ")
-    const failed = entry.failed > 0 ? ` !${entry.failed}` : ""
-    lines.push(`● ${entry.name}${methods ? ` (${methods})` : ""}${failed}`)
+    lines.push(`● ${usageLabel(entry)}`)
   }
 
   const unused = input.skills.length - [...usedNames].filter((name) => input.skills.some((s) => s.name === name)).length
@@ -156,11 +151,12 @@ export function widgetLines(input: WidgetInput, maxLines = 9): string[] {
       const name = step.agent ?? step.label ?? "subagent"
       const diff = formatDiff(diffSkillSets(parentNames, step.skills ?? []))
       const usedCount = step.used ? usageTotal(step.used).loads : 0
+      const short = run.runId.length > 4 ? run.runId.slice(-4) : run.runId
       lines.push(
-        `  ${name} · ${step.status ?? run.state} · ${step.skills?.length ?? 0} loaded · ${usedCount} used ${diff.label}`,
+        `  ${name} · ${step.status ?? run.state} · ${step.skills?.length ?? 0} loaded · ${usedCount} used · #${short} ${diff.label}`,
       )
       for (const entry of (step.used ?? []).slice(0, 2)) {
-        lines.push(`    ● ${entryLabel(entry)}`)
+        lines.push(`    ● ${usageLabel(entry)}`)
       }
     }
   }

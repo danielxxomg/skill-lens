@@ -7,9 +7,11 @@ import {
   commandSkillName,
   runsForSession,
   skillsToRefs,
+  usageLabel,
   widgetLines,
 } from "./src/model.ts"
 import type { PiSkill, SubagentRun } from "./src/model.ts"
+import { usageFromEntries } from "./src/session-usage.ts"
 import { loadRuns } from "./src/subagents.ts"
 
 const WIDGET_KEY = "skill-lens"
@@ -55,9 +57,17 @@ export default function skillLens(pi: ExtensionAPI) {
     schedule()
   }
 
-  pi.on("session_start", async (_event: any, ctx: ExtensionContext) => {
+  pi.on("session_start", async (event: any, ctx: ExtensionContext) => {
     uiContext = ctx
     sessionId = ctx.sessionManager.getSessionId()
+    // A replaced session must not inherit the previous one's counters; a resumed
+    // session recovers usage from its own stored entries and keeps the catalog.
+    if (event?.reason === "new") {
+      skills = []
+      used = []
+    } else {
+      used = usageFromEntries(ctx.sessionManager.getEntries?.() ?? [])
+    }
     refreshRuns()
     if (poll) clearInterval(poll)
     poll = setInterval(refreshRuns, POLL_MS)
@@ -91,7 +101,8 @@ export default function skillLens(pi: ExtensionAPI) {
     uiContext = ctx
     const name = commandSkillName(String(event?.text ?? ""))
     if (name) {
-      used = recordUsage(used, name, "command")
+      const known = skills.some((skill) => skill.name === name)
+      used = recordUsage(used, name, "command", !known)
       schedule()
     }
   })
@@ -100,33 +111,54 @@ export default function skillLens(pi: ExtensionAPI) {
     description: "List available and loaded skills",
     handler: async (_args: string, ctx: any) => {
       const usedByName = new Map(used.map((entry) => [entry.name, entry]))
-      const options = [...skills]
-        .sort((left, right) => {
-          const leftUsed = usedByName.has(left.name) ? 0 : 1
-          const rightUsed = usedByName.has(right.name) ? 0 : 1
-          return leftUsed - rightUsed || left.name.localeCompare(right.name)
-        })
-        .map((skill) => {
-          const usage = usedByName.get(skill.name)
-          const mark = usage ? "[x]" : "[ ]"
-          const count = usage ? ` x${Object.values(usage.methods).reduce((sum, n) => sum + (n ?? 0), 0)}` : ""
-          const badge = skill.shadowed.length > 0 ? ` x${skill.shadowed.length + 1}` : ""
-          return `${mark} ${skill.name}${count}${badge} · ${skill.scope} · ${skill.path ?? "unknown path"}`
-        })
+      const entries: Array<{ label: string; detail: string }> = []
 
-      if (options.length === 0) {
+      for (const skill of [...skills].sort((left, right) => {
+        const leftUsed = usedByName.has(left.name) ? 0 : 1
+        const rightUsed = usedByName.has(right.name) ? 0 : 1
+        return leftUsed - rightUsed || left.name.localeCompare(right.name)
+      })) {
+        const usage = usedByName.get(skill.name)
+        const mark = usage ? "●" : "○"
+        const count = usage ? ` x${Object.values(usage.methods).reduce((sum, n) => sum + (n ?? 0), 0)}` : ""
+        const badge = skill.shadowed.length > 0 ? ` x${skill.shadowed.length + 1}` : ""
+        entries.push({
+          label: `${mark} ${skill.name}${count}${badge} · ${skill.scope} · ${skill.path ?? "unknown path"}`,
+          detail: [
+            `${skill.name} · ${skill.scope}`,
+            skill.description ?? "(no description)",
+            skill.path ?? "unknown path",
+            ...skill.shadowed.map((path) => `shadowed: ${path}`),
+          ].join("\n"),
+        })
+      }
+
+      for (const run of visibleRuns()) {
+        const short = run.runId.length > 4 ? run.runId.slice(-4) : run.runId
+        for (const step of run.steps) {
+          entries.push({
+            label: `↳ ${step.agent ?? "subagent"} · ${step.status ?? run.state} · #${short}`,
+            detail: [
+              `agent: ${step.agent ?? "?"} · ${step.status ?? run.state} · #${short}`,
+              `loaded: ${(step.skills ?? []).join(", ") || "(none)"}`,
+              `used: ${(step.used ?? []).map(usageLabel).join(", ") || "(no loads)"}`,
+              ...(step.sessionFile ? [`session: ${step.sessionFile}`] : []),
+            ].join("\n"),
+          })
+        }
+      }
+
+      if (entries.length === 0) {
         ctx.ui.notify("skill-lens: no skills loaded yet", "warning")
         return
       }
 
-      const picked = await ctx.ui.select("skill-lens", options)
-      const name = picked?.replace(/^\[[x ]\]\s*/, "").split(" ")[0]
-      const skill = name ? skills.find((candidate) => candidate.name === name) : undefined
-      if (!skill) return
-      ctx.ui.notify(
-        [`${skill.name} · ${skill.scope}`, skill.description ?? "(no description)", skill.path ?? "unknown path", ...skill.shadowed.map((path) => `shadowed: ${path}`)].join("\n"),
-        "info",
+      const picked = await ctx.ui.select(
+        "skill-lens",
+        entries.map((entry) => entry.label),
       )
+      const hit = picked ? entries.find((entry) => entry.label === picked) : undefined
+      if (hit) ctx.ui.notify(hit.detail, "info")
     },
   })
 
