@@ -1,5 +1,88 @@
 # skill-lens
 
-See which skills are available and which were actually loaded — per session and per sub-agent — in OpenCode V2 and pi.
+See which skills are **available** and which were **actually loaded** — in the main chat and in every sub-agent — for OpenCode V2 and pi.
 
-Status: early development. Layout and install instructions are finalized in `odd/tasks/skill-lens.md` (T5).
+```
+skills 55/3
+[x] grilling (read 2)
+[x] go-testing (tool 1)
+[ ] 52 available without use
+-- subagents (2)
+  explore · running · 12 loaded +2/-1
+  worker  · done    · 12 loaded =
+```
+
+## What it shows
+
+- **Available** — every skill the harness would advertise for the session, with scope (`global`, `project`, `package`) and a `xN` badge when the same name exists in more than one root (the shadowed paths live in the detail view).
+- **Used** — every skill that was really loaded, with the method that loaded it:
+  - `tool` — a call to a `skill` tool (OpenCode).
+  - `read` — a `read` of a `SKILL.md` file (pi 1.5.0 has no `skill` tool; this is how the model loads skills there).
+  - `command` — a `/skill:name` expansion (pi).
+  - Failed loads are marked with `!N`, never hidden.
+- **Sub-agents** — the session family tree from the current session, running runs first, each with its own loaded set and a `+N/-M` diff against the parent (`=` when identical).
+
+Nothing is persisted: the plugin reads the harness's own session state every time.
+
+## Install — OpenCode V2 (2.2.x)
+
+TUI-only plugin. Add the **directory** (not a file) to `cli.json`:
+
+```json
+{
+  "plugins": [
+    "/absolute/path/to/skill-lens/packages/opencode"
+  ]
+}
+```
+
+Reload the TUI. Then:
+
+- `/skills` (or `/skill-lens`) opens the **Skill Lens** panel for the current session.
+- The prompt footer shows `skills <available>/<used>`.
+
+The package must not bundle `@opencode/plugin`: the host injects it and refuses a foreign copy. That is why the monorepo has no runtime dependency on it.
+
+## Install — pi (1.5.0)
+
+Add the extension directory to `~/.pi/agent/settings.json`:
+
+```json
+{
+  "extensions": ["/absolute/path/to/skill-lens/packages/pi"]
+}
+```
+
+Reload with `/reload`. Then:
+
+- A widget above the editor shows the same summary, refreshed live (150 ms debounce).
+- `/skills` opens a select list with the full detail: scope, path, shadowed paths, description.
+- `Ctrl+Shift+S` redraws the widget.
+
+Sub-agent runs come from `pi-subagents`: `status.json` under `os.tmpdir()/pi-subagents-*/async-subagent-runs/<id>/`, filtered by the parent session id. The poll runs every 1.5 s and is cleared on `session_shutdown`.
+
+## Layout
+
+```
+packages/core      pure model: effective skills, usage aggregation, session tree, diffs
+packages/opencode  TUI-only plugin (panel + footer + /skills)
+packages/pi        pi extension (widget + status + /skills)
+```
+
+`packages/*` import `core` by relative path so both hosts can load the sources in place.
+
+## Development
+
+```sh
+npm install
+npm test          # vitest: core, adapters' pure model, wiring with fake hosts
+npm run typecheck
+```
+
+The adapters are exercised against fake hosts, not by mocking a whole harness. The live check is loading them in each TUI.
+
+## Limitations
+
+- OpenCode availability comes from the location catalog, not from the session prompt: a 2.2.5 session stores no skill block in its system message (verified), so per-session availability cannot be read from the transcript.
+- pi sub-agent skills are the set loaded into that run (`status.json.steps[].skills`), which is what the harness records; per-sub-agent `read` history would need parsing each run's session file.
+- OpenCode V1 has no TUI plugin API and is out of scope.
