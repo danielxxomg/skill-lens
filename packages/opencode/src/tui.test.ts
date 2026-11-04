@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import plugin from "../tui.tsx"
 
@@ -14,6 +14,8 @@ interface FakeState {
   queriedSessions: string[]
   disposed: number
   slots: string[]
+  renderers: Record<string, (input: any) => unknown>
+  handlers: Record<string, () => void>
   commands: Array<{ id: string; slash?: { name: string }; run: () => Promise<void> }>
 }
 
@@ -25,6 +27,8 @@ function fakeContext(messages: unknown[]) {
     queriedSessions: [],
     disposed: 0,
     slots: [],
+    renderers: {},
+    handlers: {},
     commands: [],
   }
 
@@ -57,13 +61,17 @@ function fakeContext(messages: unknown[]) {
           },
         },
       },
-      on: () => () => {
-        state.disposed += 1
+      on: (name: string, handler: () => void) => {
+        state.handlers[name] = handler
+        return () => {
+          state.disposed += 1
+        }
       },
     },
     ui: {
-      slot: ({ append }: { append: string }) => {
+      slot: ({ append, render }: { append: string; render: (input: any) => unknown }) => {
         state.slots.push(append)
+        state.renderers[append] = render
         return () => {}
       },
       panel: {
@@ -129,6 +137,24 @@ describe("opencode tui plugin wiring", () => {
     expect(state.slots).toContain("sidebar.content")
     expect(state.slots).toContain("session.panel")
     expect(state.slots).not.toContain("prompt.footer.status")
+  })
+
+  it("refreshes the session shown in the sidebar, not the active tab", async () => {
+    vi.useFakeTimers()
+    const { context, state } = fakeContext(MESSAGES)
+    plugin.setup(context)
+
+    state.renderers["sidebar.content"]?.({ sessionID: "child" })
+    await vi.advanceTimersByTimeAsync(200)
+    expect(state.queriedSessions).toContain("child")
+
+    state.queriedSessions.length = 0
+    state.handlers["session.tool.success"]?.()
+    await vi.advanceTimersByTimeAsync(200)
+
+    expect(state.queriedSessions).toContain("child")
+    expect(state.queriedSessions).not.toContain("ses_1")
+    vi.useRealTimers()
   })
 
   it("disposes event subscriptions on cleanup", () => {

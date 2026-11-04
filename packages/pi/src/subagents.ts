@@ -94,12 +94,15 @@ export function sessionIdForFile(path: string): string | undefined {
 
 function toChildren(raw: RawChild[] | undefined): SubagentChild[] | undefined {
   if (!raw?.length) return undefined
-  return raw.map((child) => ({
-    ...(child.agent ? { agent: child.agent } : {}),
-    ...(child.status ?? child.state ? { status: child.status ?? child.state } : {}),
-    ...(child.sessionId ? { sessionId: child.sessionId } : {}),
-    ...(child.sessionFile ? { used: usageForSessionFile(child.sessionFile) ?? [] } : {}),
-  }))
+  return raw.map((child) => {
+    const sessionId = child.sessionId ?? (child.sessionFile ? sessionIdForFile(child.sessionFile) : undefined)
+    return {
+      ...(child.agent ? { agent: child.agent } : {}),
+      ...(child.status ?? child.state ? { status: child.status ?? child.state } : {}),
+      ...(sessionId ? { sessionId } : {}),
+      ...(child.sessionFile ? { used: usageForSessionFile(child.sessionFile) ?? [] } : {}),
+    }
+  })
 }
 
 function toSteps(raw: NonNullable<RawStatus["steps"]>): SubagentStep[] {
