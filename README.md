@@ -86,3 +86,7 @@ The adapters are exercised against fake hosts, not by mocking a whole harness. T
 - OpenCode availability comes from the location catalog, not from the session prompt: a 2.2.5 session stores no skill block in its system message (verified), so per-session availability cannot be read from the transcript.
 - pi sub-agent skills are the set loaded into that run (`status.json.steps[].skills`), which is what the harness records; per-sub-agent `read` history would need parsing each run's session file.
 - OpenCode V1 has no TUI plugin API and is out of scope.
+
+## License
+
+MIT © danielxxomg
