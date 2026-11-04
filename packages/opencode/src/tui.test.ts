@@ -16,6 +16,7 @@ interface FakeState {
   slots: string[]
   renderers: Record<string, (input: any) => unknown>
   handlers: Record<string, () => void>
+  familyCalls: string[]
   commands: Array<{ id: string; slash?: { name: string }; run: () => Promise<void> }>
 }
 
@@ -29,6 +30,7 @@ function fakeContext(messages: unknown[]) {
     slots: [],
     renderers: {},
     handlers: {},
+    familyCalls: [],
     commands: [],
   }
 
@@ -48,10 +50,13 @@ function fakeContext(messages: unknown[]) {
         },
       },
       session: {
-        family: (id: string) => [
-          { id, title: "main", time: { busy: 1 } },
-          { id: "child", parentID: id, title: "explore", time: { idle: 1 } },
-        ],
+        family: (id: string) => {
+          state.familyCalls.push(id)
+          return [
+            { id, title: "main", time: { busy: 1 } },
+            { id: "child", parentID: id, title: "explore", time: { idle: 1 } },
+          ]
+        },
         get: (id: string) => ({ id, title: id, time: { idle: 1 } }),
         message: {
           sync: async () => {},
@@ -154,6 +159,25 @@ describe("opencode tui plugin wiring", () => {
 
     expect(state.queriedSessions).toContain("child")
     expect(state.queriedSessions).not.toContain("ses_1")
+    vi.useRealTimers()
+  })
+
+  it("follows the sidebar's latest session after a tab switch", async () => {
+    vi.useFakeTimers()
+    const { context, state } = fakeContext(MESSAGES)
+    plugin.setup(context)
+
+    state.renderers["sidebar.content"]?.({ sessionID: "child" })
+    await vi.advanceTimersByTimeAsync(200)
+    expect(state.familyCalls.at(-1)).toBe("child")
+
+    state.renderers["sidebar.content"]?.({ sessionID: "ses_2" })
+    await vi.advanceTimersByTimeAsync(200)
+    expect(state.familyCalls.at(-1)).toBe("ses_2")
+
+    state.handlers["session.tool.success"]?.()
+    await vi.advanceTimersByTimeAsync(200)
+    expect(state.familyCalls.at(-1)).toBe("ses_2")
     vi.useRealTimers()
   })
 

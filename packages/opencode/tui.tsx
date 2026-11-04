@@ -40,6 +40,7 @@ export default Plugin.define({
 
     let timer: ReturnType<typeof setTimeout> | undefined
     let inFlight = false
+    let visibleSession: string | undefined
     const pendingSessions = new Set<string>()
 
     const activeSessionID = (): string | undefined => {
@@ -132,12 +133,14 @@ export default Plugin.define({
     const schedule = (sessionID?: string): void => {
       if (timer) clearTimeout(timer)
       timer = setTimeout(() => {
-        void refresh(sessionID ?? tracked() ?? activeSessionID())
+        void refresh(sessionID ?? visibleSession ?? tracked() ?? activeSessionID())
       }, DEBOUNCE_MS)
     }
 
     const ensure = (sessionID: string | undefined): void => {
-      if (sessionID && sessionID !== tracked()) schedule(sessionID)
+      if (!sessionID) return
+      visibleSession = sessionID
+      if (sessionID !== tracked()) schedule(sessionID)
     }
 
     const disposers: Array<() => void> = []
