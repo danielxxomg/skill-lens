@@ -172,8 +172,9 @@ export function widgetLines(input: WidgetInput, maxLines = 9): string[] {
       for (const child of (step.children ?? []).slice(0, 2)) {
         const childId = child.sessionId ?? ""
         const childShort = childId.length > 6 ? childId.slice(-6) : childId
-        const suffix = childShort ? ` · #${childShort}` : ""
-        lines.push(`    ↳ ${child.agent ?? "subagent"} · ${child.status ?? "?"}${suffix}`)
+        const idPart = childShort ? ` · #${childShort}` : ""
+        const usedPart = child.used ? ` · ${usageTotal(child.used).loads} used` : ""
+        lines.push(`    ↳ ${child.agent ?? "subagent"} · ${child.status ?? "?"}${idPart}${usedPart}`)
       }
     }
   }

@@ -44,6 +44,8 @@ Out of scope: OpenCode V1, OpenCode Desktop GUI, cross-session global view, any 
 | T4 | S5, S6, S9 (pi extension) | inline (serial, after T2) | done | 267dd7f |
 | T5 | S13 (README + install) | inline | done | 09358ce |
 | T6 | S4 revision (sidebar + bar) | inline | done | cb7c544 |
+| T7 | Verify correction batch 1 (counts, diffs, refresh, history) | inline | done | 0f5b9c9 |
+| T8 | Verify correction batch 2 (catalog sections, grandchild rows, refresh identity) | inline | done | pending commit |
 
 ## Log
 
@@ -61,3 +63,5 @@ L11 — User: "mucho mejor.., pero dime!, visualmente es posible saber que sesio
 L12 — Evidence: 46 vitest tests green (new session-usage parser + per-child rows), tsc clean.
 L13 — Independent verify returned BLOCKED with actionable findings; one correction batch applied: distinct vs load counting (bar and label), panel sections + paths + shadowed duplicates + used badges, child diffs in OpenCode, `busy > idle` session state, trailing refresh instead of dropped events, pi resume backfill from `sessionManager.getEntries()` and reset on `/new`, strict `/skill:` parsing plus failed-load counting for unknown skills, sub-agent entries in the pi dialog, README footer corrected, fixture provenance noted.
 L14 — Recheck after the batch: 53 vitest tests green, tsc clean, RDD assess under_budget.
+L15 — Second verify recheck: S2, S3 and S13 FIXED. Open items accepted as harness limits, documented in README: pi exposes only the winning skill (no shadowed paths), the expanded `/skill:` command is not recoverable on resume, and duplicate-name fixtures are hand-built. Fixed in this batch: grandchild rows carry session id and usage, and the queued refresh keeps the newly active session instead of rereading the old one.
+L16 — Evidence: 55 vitest tests green, tsc clean, pushed to github.com/danielxxomg/skill-lens (public, MIT).

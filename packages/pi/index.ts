@@ -1,6 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent"
 
-import { recordUsage } from "../core/src/index.ts"
+import { recordUsage, usageTotal } from "../core/src/index.ts"
 import type { SkillRef, UsageEntry } from "../core/src/index.ts"
 import {
   applyUsage,
@@ -155,6 +155,10 @@ export default function skillLens(pi: ExtensionAPI) {
               `loaded: ${(step.skills ?? []).join(", ") || "(none)"}`,
               `used: ${(step.used ?? []).map(usageLabel).join(", ") || "(no loads)"}`,
               ...(step.sessionFile ? [`session: ${step.sessionFile}`] : []),
+              ...(step.children ?? []).map(
+                (child) =>
+                  `↳ ${child.agent ?? "subagent"} · ${child.status ?? "?"}${child.used ? ` · ${usageTotal(child.used).loads} used` : ""}`,
+              ),
             ].join("\n"),
           })
         }

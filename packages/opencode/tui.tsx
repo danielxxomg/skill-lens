@@ -134,7 +134,7 @@ export default Plugin.define({
     const schedule = (sessionID?: string): void => {
       if (timer) clearTimeout(timer)
       timer = setTimeout(() => {
-        void refresh(sessionID ?? tracked() ?? activeSessionID())
+        void refresh(sessionID ?? activeSessionID() ?? tracked())
       }, DEBOUNCE_MS)
     }
 

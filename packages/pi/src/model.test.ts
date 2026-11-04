@@ -174,6 +174,39 @@ describe("widgetLines", () => {
     expect(lines).toContain("    ● grilling x2 (read 2)")
   })
 
+  it("renders grandchild rows with their session id and usage", () => {
+    const lines = widgetLines(
+      {
+        skills: refs,
+        used: [],
+        runs: [
+          {
+            runId: "r1",
+            state: "running",
+            steps: [
+              {
+                agent: "explore",
+                status: "running",
+                children: [
+                  {
+                    agent: "grand",
+                    status: "done",
+                    sessionId: "ses_grandchild",
+                    used: [{ name: "grilling", methods: { read: 2 }, failed: 0 }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      20,
+    )
+
+    expect(lines.join("\n")).toContain("↳ grand · done")
+    expect(lines.join("\n")).toContain("2 used")
+  })
+
   it("never exceeds maxLines", () => {
     const lines = widgetLines(
       {

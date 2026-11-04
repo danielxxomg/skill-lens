@@ -84,7 +84,10 @@ The adapters are exercised against fake hosts, not by mocking a whole harness. T
 ## Limitations
 
 - OpenCode availability comes from the location catalog, not from the session prompt: a 2.2.5 session stores no skill block in its system message (verified), so per-session availability cannot be read from the transcript.
-- pi sub-agent skills are the set loaded into that run (`status.json.steps[].skills`), which is what the harness records; per-sub-agent `read` history would need parsing each run's session file.
+- pi exposes only the **winning** skill in `systemPromptOptions`, so shadowed duplicates cannot be shown there. OpenCode has the full catalog and does show them.
+- pi sub-agent skills are the set loaded into that run (`status.json.steps[].skills`); the counts come from joining that run's `toolCall` and `toolResult` entries. Without a session file the row falls back to the loaded set.
+- pi does not store the original `/skill:` command once expanded, so a resumed session restores `read`/`tool` loads but not command loads.
+- Duplicate-name fixtures are hand-built from the harness shapes; there is no real captured session with collisions to assert against.
 - OpenCode V1 has no TUI plugin API and is out of scope.
 
 ## License
