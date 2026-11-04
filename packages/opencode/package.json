@@ -1,0 +1,9 @@
+{
+  "name": "@skill-lens/opencode",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tui": "./tui.tsx"
+  }
+}
